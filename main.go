@@ -1,35 +1,29 @@
 package main
 
 import (
-	"net/http"
-
 	"github.com/a-h/templ"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 
 	"example/hello/view"
+	"example/hello/view/layout"
+	"example/hello/view/partial"
 )
 
 func main() {
 	app := fiber.New()
+	app.Static("/public", "./public")
 
-	app.Get("/:name?", func(c *fiber.Ctx) error {
-		name := c.Params("name")
-		if name == "" {
-			name = "World"}
-		return Render(
-			c, view.Home(name))
+	app.Get("/", func(c *fiber.Ctx) error {
+		return Render(c, layout.Base(view.Index()))
 	})
-	app.Use(NotFoundMiddleware)
+	app.Get("/login", func(c *fiber.Ctx) error {
+		return Render(c, layout.Base(partial.Login()))
+	})
 
 	log.Fatal(
 		app.Listen(":3000"))
-}
-
-func NotFoundMiddleware(c *fiber.Ctx) error {
-	return Render(
-		c, view.NotFound(), templ.WithStatus(http.StatusNotFound))
 }
 
 func Render(c *fiber.Ctx, component templ.Component, options ...func(*templ.ComponentHandler)) error {

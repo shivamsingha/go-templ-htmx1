@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tailwindcss build -o static/css/tailwind.css --minify",
-    "watch": "tailwindcss build -o static/css/tailwind.css --watch",
+    "build": "tailwindcss build -o public/css/tailwind.css --minify",
+    "watch": "tailwindcss build -o public/css/tailwind.css --watch",
     "format": "prettier --write .",
     "prepare": "husky"
   },
