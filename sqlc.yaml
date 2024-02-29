@@ -1,0 +1,14 @@
+version: "2"
+sql:
+- schema: "database/schema.sql"
+  queries: "database/query.sql"
+  engine: "postgresql"
+  database:
+    uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/${POSTGRES_DB}"
+  gen:
+    go: 
+      package: "users"
+      out: "database"
+      sql_package: "pgx/v5"
+  rules:
+    - sqlc/db-prepare
