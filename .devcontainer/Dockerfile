@@ -6,7 +6,7 @@ FROM mcr.microsoft.com/devcontainers/go:1-1.22-bookworm
 
 # [Optional] Uncomment the next lines to use go get to install anything else you need
 USER vscode
-RUN curl -sSf https://atlasgo.sh | CI=true sh; \
+RUN go install github.com/pressly/goose/v3/cmd/goose@latest; \
     go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest; \
     go install github.com/cosmtrek/air@latest; \
     go install github.com/a-h/templ/cmd/templ@latest
