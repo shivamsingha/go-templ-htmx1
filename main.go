@@ -46,11 +46,12 @@ func main() {
 	})
 
 	app.Post("/login", func(c *fiber.Ctx) error {
-		type input struct {
-			Email    string
-			Password string
+		type Input struct {
+			Email    string `form:"email"`
+			Password string `form:"password"`
 		}
-		var inp input
+
+		inp := new(Input)
 
 		if err := c.BodyParser(inp); err != nil {
 			return c.Status(400).SendString(err.Error())
@@ -79,13 +80,14 @@ func main() {
 	})
 
 	app.Post("/signup", func(c *fiber.Ctx) error {
-		type input struct {
-			Name            string
-			Email           string
-			Password        string
-			ConfirmPassword string
+		type Input struct {
+			Name            string `form:"name"`
+			Email           string `form:"email"`
+			Password        string `form:"password"`
+			ConfirmPassword string `form:"confirm_password"`
 		}
-		var inp input
+
+		inp := new(Input)
 
 		if err := c.BodyParser(inp); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
@@ -93,7 +95,14 @@ func main() {
 		if inp.Password != inp.ConfirmPassword {
 			return c.Status(fiber.StatusBadRequest).SendString("Passwords don't match")
 		}
-		var u database.CreateUserParams
+
+		fmt.Println(inp)
+		u := database.CreateUserParams{
+			Name:     inp.Name,
+			Email:    inp.Email,
+			Password: inp.Password,
+		}
+		fmt.Println(u)
 
 		if err := q.CreateUser(context.Background(), u); err != nil {
 			var pgErr *pgconn.PgError
