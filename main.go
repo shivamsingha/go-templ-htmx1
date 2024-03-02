@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"regexp"
 
 	"github.com/a-h/templ"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/log"
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
@@ -22,6 +24,8 @@ import (
 	"example/hello/view/layout"
 	"example/hello/view/partial"
 )
+
+var validate *validator.Validate
 
 func main() {
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DATABASE_URL"))
@@ -51,17 +55,15 @@ func main() {
 			Password string `form:"password"`
 		}
 
-		inp := new(Input)
+		var inp Input
 
-		if err := c.BodyParser(inp); err != nil {
+		if err := c.BodyParser(&inp); err != nil {
 			return c.Status(400).SendString(err.Error())
 		}
 
 		u, err := q.GetUser(context.Background(), inp.Email)
 
 		if err != nil {
-			fmt.Println(inp)
-			fmt.Println(err)
 			if errors.Is(err, pgx.ErrNoRows) {
 				return c.Status(fiber.StatusUnauthorized).SendString("User not found")
 			}
@@ -81,19 +83,23 @@ func main() {
 
 	app.Post("/signup", func(c *fiber.Ctx) error {
 		type Input struct {
-			Name            string `form:"name"`
-			Email           string `form:"email"`
-			Password        string `form:"password"`
+			Name            string `form:"name" validate:"required,min=3"`
+			Email           string `form:"email" validate:"required,email"`
+			Password        string `form:"password" validate:"required,min=8,eqfield=ConfirmPassword,customPassword"`
 			ConfirmPassword string `form:"confirm_password"`
 		}
 
-		inp := new(Input)
+		var inp Input
 
-		if err := c.BodyParser(inp); err != nil {
+		if err := c.BodyParser(&inp); err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		if inp.Password != inp.ConfirmPassword {
-			return c.Status(fiber.StatusBadRequest).SendString("Passwords don't match")
+
+		validate = validator.New(validator.WithRequiredStructEnabled())
+		validate.RegisterValidation("customPassword", validatePassword)
+		err := validate.Struct(inp)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 
 		fmt.Println(inp)
@@ -134,4 +140,26 @@ func Render(c *fiber.Ctx, component templ.Component, options ...func(*templ.Comp
 		o(componentHandler)
 	}
 	return adaptor.HTTPHandler(componentHandler)(c)
+}
+
+func validatePassword(fl validator.FieldLevel) bool {
+	password := fl.Field().String()
+
+	if matched, _ := regexp.MatchString(`[A-Z]`, password); !matched {
+		return false
+	}
+
+	if matched, _ := regexp.MatchString(`[a-z]`, password); !matched {
+		return false
+	}
+
+	if matched, _ := regexp.MatchString(`[0-9]`, password); !matched {
+		return false
+	}
+
+	if matched, _ := regexp.MatchString(`[!@#$%^&*()_+{}\[\]:;<>,.?~\\/\-=|"']`, password); !matched {
+		return false
+	}
+
+	return true
 }
