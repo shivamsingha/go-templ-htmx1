@@ -34,23 +34,19 @@ func main() {
 	app.Use(logger.New())
 	app.Static("/static", "./web/static")
 
-	app.Get("/", func(c *fiber.Ctx) error {
-		return util.Render(c, layout.Base(view.Index()))
+	app.Get("/", util.Render(layout.Base(view.Index())))
+
+	app.Route("/login", func(login fiber.Router) {
+		login.Get("/", util.Render(layout.Base(partial.Login())))
+		login.Post("/", service.LoginHandler(q))
 	})
 
-	app.Get("/login", func(c *fiber.Ctx) error {
-		return util.Render(c, layout.Base(partial.Login()))
+	app.Route("/signup", func(signup fiber.Router) {
+		signup.Get("/", util.Render(layout.Base(partial.Signup())))
+		signup.Post("/", service.SignupHandler(q))
 	})
 
-	app.Post("/login", service.LoginHandler(q))
-
-	app.Get("/signup", func(c *fiber.Ctx) error {
-		return util.Render(c, layout.Base(partial.Signup()))
-	})
-
-	app.Post("/signup", service.SignupHandler(q))
-
-	app.Use(middleware.NotFoundMiddleware)
+	app.Use(middleware.NotFoundMiddleware())
 
 	log.Fatal(
 		app.Listen(":3000"))

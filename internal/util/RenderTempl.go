@@ -6,10 +6,12 @@ import (
 	"github.com/gofiber/fiber/v2/middleware/adaptor"
 )
 
-func Render(c *fiber.Ctx, component templ.Component, options ...func(*templ.ComponentHandler)) error {
-	componentHandler := templ.Handler(component)
-	for _, o := range options {
-		o(componentHandler)
+func Render(component templ.Component, options ...func(*templ.ComponentHandler)) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		componentHandler := templ.Handler(component)
+		for _, o := range options {
+			o(componentHandler)
+		}
+		return adaptor.HTTPHandler(componentHandler)(c)
 	}
-	return adaptor.HTTPHandler(componentHandler)(c)
 }
