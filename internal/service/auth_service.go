@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"errors"
-	"fmt"
 
 	database "example/hello/internal/model"
 	"example/hello/internal/util"
@@ -13,6 +12,7 @@ import (
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/matthewhartstonge/argon2"
 )
 
 func LoginHandler(q *database.Queries) fiber.Handler {
@@ -37,7 +37,12 @@ func LoginHandler(q *database.Queries) fiber.Handler {
 			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 		}
 
-		if inp.Password != u.Password {
+		passwordMatches, err := argon2.VerifyEncoded([]byte(inp.Password), []byte(u.Password))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		}
+
+		if !passwordMatches {
 			return c.Status(fiber.StatusUnauthorized).SendString("Password wrong")
 		}
 
@@ -67,13 +72,18 @@ func SignupHandler(q *database.Queries) fiber.Handler {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
 
-		fmt.Println(inp)
+		argon := argon2.RecommendedDefaults()
+
+		encoded, err := argon.HashEncoded([]byte(inp.Password))
+		if err != nil {
+			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		}
+
 		u := database.CreateUserParams{
 			Name:     inp.Name,
 			Email:    inp.Email,
-			Password: inp.Password,
+			Password: string(encoded),
 		}
-		fmt.Println(u)
 
 		if err := q.CreateUser(context.Background(), u); err != nil {
 			var pgErr *pgconn.PgError
