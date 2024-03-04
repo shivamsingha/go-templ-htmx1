@@ -1,14 +1,14 @@
 version: "2"
 sql:
-- schema: "database/migrations"
-  queries: "database/query.sql"
+- schema: "internal/database/migrations"
+  queries: "internal/database/query.sql"
   engine: "postgresql"
   database:
     uri: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOSTNAME}:5432/${POSTGRES_DB}"
   gen:
     go: 
       package: "database"
-      out: "database"
+      out: "internal/model"
       sql_package: "pgx/v5"
   rules:
     - sqlc/db-prepare
