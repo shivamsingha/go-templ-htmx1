@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log"
 
 	database "example/hello/internal/model"
 	"example/hello/internal/util"
@@ -97,5 +98,72 @@ func SignupHandler(q *database.Queries) fiber.Handler {
 		}
 
 		return c.Status(fiber.StatusCreated).SendString("Created")
+	}
+}
+
+type ForgotPasswordTask struct {
+	Email string
+	q     *database.Queries
+}
+
+func (bt *ForgotPasswordTask) Process() error {
+	q := bt.q
+	u, err := q.GetUser(context.Background(), bt.Email)
+
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return errors.New("Error while generating reset link, " + bt.Email + " doesn't exist. ")
+		}
+		return err
+	}
+
+	count, err := q.CountResetTokensByUser(context.Background(), u.ID)
+	if err != nil {
+		return err
+	}
+
+	if count >= 10 {
+		return errors.New("Error while generating reset link, " + bt.Email + " reset limit exceeded.")
+	}
+
+	token, err := util.GenerateResetToken()
+	if err != nil {
+		return err
+	}
+
+	ResetTokenRow := database.CreateResetTokenParams{
+		UserID: u.ID,
+		Token:  token,
+	}
+
+	if err := q.CreateResetToken(context.Background(), ResetTokenRow); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func ForgotPassword(q *database.Queries) fiber.Handler {
+	return func(c *fiber.Ctx) error {
+		type Input struct {
+			Email string `form:"email"`
+		}
+
+		var inp Input
+
+		if err := c.BodyParser(&inp); err != nil {
+			return c.Status(400).SendString(err.Error())
+		}
+
+		task := &ForgotPasswordTask{Email: inp.Email, q: q}
+
+		go func() {
+			if err := task.Process(); err != nil {
+				log.Printf("Error creating reset password link: %v", err)
+			}
+		}()
+
+		return c.Status(fiber.StatusOK).SendString("Password Reset Link sent to email")
+
 	}
 }

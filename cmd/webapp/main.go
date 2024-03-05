@@ -46,6 +46,11 @@ func main() {
 		signup.Post("/", service.SignupHandler(q))
 	})
 
+	app.Route("/forgot-password", func(forgot fiber.Router) {
+		forgot.Get("/", util.Render(layout.Base(partial.ForgotPassword())))
+		forgot.Post("/", service.ForgotPassword(q))
+	})
+
 	app.Use(middleware.NotFoundMiddleware())
 
 	log.Fatal(

@@ -8,6 +8,13 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type ResetToken struct {
+	Token     string
+	UserID    pgtype.UUID
+	CreatedAt pgtype.Timestamp
+	ExpiresAt pgtype.Timestamp
+}
+
 type User struct {
 	ID            pgtype.UUID
 	Email         string
