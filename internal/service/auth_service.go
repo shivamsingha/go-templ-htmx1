@@ -4,16 +4,21 @@ import (
 	"context"
 	"errors"
 	"log"
+	"time"
 
 	"example/hello/internal/database"
 	"example/hello/internal/database/sqlc"
+	"example/hello/internal/middleware"
 	"example/hello/internal/util"
+	"example/hello/web/templates/layout"
+	"example/hello/web/templates/partial"
 
 	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/jackc/pgerrcode"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/matthewhartstonge/argon2"
 )
 
@@ -26,7 +31,7 @@ func LoginHandler(c *fiber.Ctx) error {
 	var inp Input
 
 	if err := c.BodyParser(&inp); err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
 	q := sqlc.New(database.Conn)
@@ -149,7 +154,7 @@ func ForgotPassword(c *fiber.Ctx) error {
 	var inp Input
 
 	if err := c.BodyParser(&inp); err != nil {
-		return c.Status(400).SendString(err.Error())
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
 	task := &ForgotPasswordTask{Email: inp.Email}
@@ -162,4 +167,94 @@ func ForgotPassword(c *fiber.Ctx) error {
 
 	return c.Status(fiber.StatusOK).SendString("Password Reset Link sent to email")
 
+}
+
+func ResetPasswordPage(c *fiber.Ctx) error {
+	token := c.Query("token")
+
+	if token == "" {
+		return c.Status(400).SendString("Token required")
+	}
+
+	q := sqlc.New(database.Conn)
+	reset, err := q.PopResetToken(context.Background(), token)
+
+	if err != nil {
+		log.Printf("Error popping reset token at ResetPasswordPage: %v", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return c.Status(fiber.StatusUnauthorized).SendString("Invalid Token")
+		}
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	if time.Now().After(reset.ExpiresAt.Time) {
+		return c.Status(fiber.StatusForbidden).SendString("Token expired")
+	}
+
+	sess, err := middleware.Store.Get(c)
+	if err != nil {
+		log.Printf("Error getting session at ResetPasswordPage: %v", err)
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	sess.Set("resetuser", reset.UserID)
+	sess.SetExpiry(10 * time.Minute)
+	if err := sess.Save(); err != nil {
+		log.Printf("Error saving session at ResetPasswordPage: %v", err)
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	return util.Render(c, layout.Base(partial.ResetPassword()))
+}
+
+func ResetPassword(c *fiber.Ctx) error {
+	sess, err := middleware.Store.Get(c)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	resetuser, ok := sess.Get("resetuser").(pgtype.UUID)
+	if !ok {
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	if err := sess.Destroy(); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	type Input struct {
+		Password        string `form:"password" validate:"required,min=8,eqfield=ConfirmPassword,customPassword"`
+		ConfirmPassword string `form:"confirm_password"`
+	}
+
+	var inp Input
+
+	if err := c.BodyParser(&inp); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
+
+	validate := validator.New(validator.WithRequiredStructEnabled())
+	validate.RegisterValidation("customPassword", util.ValidatePassword)
+	if err := validate.Struct(inp); err != nil {
+		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+	}
+
+	argon := argon2.RecommendedDefaults()
+
+	encoded, err := argon.HashEncoded([]byte(inp.Password))
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	u := sqlc.UpdatePasswordUserParams{
+		ID:       resetuser,
+		Password: string(encoded),
+	}
+
+	q := sqlc.New(database.Conn)
+	if err := q.UpdatePasswordUser(context.Background(), u); err != nil {
+		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+	}
+
+	return c.Status(fiber.StatusCreated).SendString("Created")
 }

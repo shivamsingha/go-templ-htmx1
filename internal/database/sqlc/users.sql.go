@@ -11,35 +11,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countResetTokensByUser = `-- name: CountResetTokensByUser :one
-SELECT count(*)
-FROM reset_tokens
-WHERE user_id = $1
-    AND expires_at > CURRENT_TIMESTAMP
-`
-
-func (q *Queries) CountResetTokensByUser(ctx context.Context, userID pgtype.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countResetTokensByUser, userID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
-const createResetToken = `-- name: CreateResetToken :exec
-INSERT INTO reset_tokens(token, user_id)
-VALUES ($1, $2)
-`
-
-type CreateResetTokenParams struct {
-	Token  string
-	UserID pgtype.UUID
-}
-
-func (q *Queries) CreateResetToken(ctx context.Context, arg CreateResetTokenParams) error {
-	_, err := q.db.Exec(ctx, createResetToken, arg.Token, arg.UserID)
-	return err
-}
-
 const createUser = `-- name: CreateUser :exec
 INSERT INTO users(email, name, password)
 VALUES ($1, $2, $3)
@@ -76,4 +47,20 @@ func (q *Queries) GetUser(ctx context.Context, email string) (GetUserRow, error)
 	var i GetUserRow
 	err := row.Scan(&i.ID, &i.Password, &i.EmailVerified)
 	return i, err
+}
+
+const updatePasswordUser = `-- name: UpdatePasswordUser :exec
+UPDATE users
+SET password = $2, updated_at = CURRENT_TIMESTAMP
+WHERE id = $1
+`
+
+type UpdatePasswordUserParams struct {
+	ID       pgtype.UUID
+	Password string
+}
+
+func (q *Queries) UpdatePasswordUser(ctx context.Context, arg UpdatePasswordUserParams) error {
+	_, err := q.db.Exec(ctx, updatePasswordUser, arg.ID, arg.Password)
+	return err
 }
