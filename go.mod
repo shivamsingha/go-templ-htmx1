@@ -3,7 +3,7 @@ module example/hello
 go 1.22.0
 
 require (
-	github.com/a-h/templ v0.2.590
+	github.com/a-h/templ v0.2.598
 	github.com/go-playground/validator/v10 v10.18.0
 	github.com/gofiber/fiber/v2 v2.52.1
 	github.com/jackc/pgerrcode v0.0.0-20220416144525-469b46aa5efa

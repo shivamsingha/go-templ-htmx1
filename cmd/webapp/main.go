@@ -40,7 +40,7 @@ func main() {
 	})
 
 	app.Route("/signup", func(router fiber.Router) {
-		router.Get("/", util.RenderHandler(layout.Base(partial.Signup())))
+		router.Get("/", util.RenderHandler(layout.Base(partial.Signup(""))))
 		router.Post("/", service.SignupHandler)
 	})
 

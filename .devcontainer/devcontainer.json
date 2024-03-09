@@ -36,7 +36,8 @@
         "mtxr.sqltools-driver-pg",
         "bradlc.vscode-tailwindcss",
         "redhat.vscode-yaml",
-        "tamasfe.even-better-toml"
+        "tamasfe.even-better-toml",
+        "otovo-oss.htmx-tags"
       ]
     }
   }

@@ -10,6 +10,7 @@ import (
 	"example/hello/internal/database/sqlc"
 	"example/hello/internal/middleware"
 	"example/hello/internal/util"
+	"example/hello/web/templates/components"
 	"example/hello/web/templates/layout"
 	"example/hello/web/templates/partial"
 
@@ -57,6 +58,7 @@ func LoginHandler(c *fiber.Ctx) error {
 }
 
 func SignupHandler(c *fiber.Ctx) error {
+	time.Sleep(1 * time.Second)
 	type Input struct {
 		Name            string `form:"name" validate:"required,min=3"`
 		Email           string `form:"email" validate:"required,email"`
@@ -74,7 +76,12 @@ func SignupHandler(c *fiber.Ctx) error {
 	validate.RegisterValidation("customPassword", util.ValidatePassword)
 	err := validate.Struct(inp)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+		c.Status(fiber.StatusBadRequest)
+		if c.Get("HX-Request") == "true" {
+			c.Set("HX-Select", "#SignupError")
+			return util.Render(c, components.SignupError(err.Error()))
+		}
+		return util.Render(c, layout.Base(partial.Signup(err.Error())))
 	}
 
 	argon := argon2.RecommendedDefaults()
