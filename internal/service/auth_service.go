@@ -78,7 +78,8 @@ func SignupHandler(c *fiber.Ctx) error {
 	if err != nil {
 		c.Status(fiber.StatusBadRequest)
 		if c.Get("HX-Request") == "true" {
-			c.Set("HX-Select", "#SignupError")
+			c.Set("HX-Retarget", "#SignupError")
+			c.Set("HX-Reswap", "outerHTML")
 			return util.Render(c, components.SignupError(err.Error()))
 		}
 		return util.Render(c, layout.Base(partial.Signup(err.Error())))
