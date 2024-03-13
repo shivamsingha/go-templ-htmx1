@@ -35,7 +35,7 @@ func main() {
 	app.Get("/", util.RenderHandler(layout.Base(view.Index())))
 
 	app.Route("/login", func(router fiber.Router) {
-		router.Get("/", util.RenderHandler(layout.Base(partial.Login())))
+		router.Get("/", util.RenderHandler(layout.Base(partial.Login(""))))
 		router.Post("/", service.LoginHandler)
 	})
 

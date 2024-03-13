@@ -1,14 +1,17 @@
 package partial
 
-templ Login() {
+import "example/hello/web/templates/components"
+
+templ Login(err string) {
 	<div class="flex w-screen justify-center items-center h-screen bg-gray-800 ">
 		<div class="flex flex-col max-w-md p-6 rounded-md sm:p-10 bg-gray-50 text-gray-800">
 			<div class="mb-8 text-center">
 				<h1 class="my-3 text-4xl font-bold">Sign in</h1>
 				<p class="text-sm text-gray-600">Sign in to access your account</p>
 			</div>
-			<form novalidate="" action="" method="POST" class="space-y-12">
+			<form action="" hx-post="" method="POST" class="space-y-12">
 				<div class="space-y-4">
+					@components.SignupError(err)
 					<div>
 						<label for="email" class="block mb-2 text-sm">Email address</label>
 						<input type="email" name="email" id="email" placeholder="leroy@jenkins.com" class="w-full px-3 py-2 border rounded-md border-gray-300 bg-gray-50 text-gray-800"/>
@@ -23,7 +26,7 @@ templ Login() {
 				</div>
 				<div class="space-y-2">
 					<div>
-						<input type="submit" class="w-full px-8 py-3 font-semibold rounded-md bg-violet-600 text-gray-50" value="Login" />
+						<input type="submit" class="w-full px-8 py-3 font-semibold rounded-md bg-violet-600 text-gray-50" value="Login"/>
 					</div>
 					<p class="px-6 text-sm text-center text-gray-600">
 						Don't have an account yet?

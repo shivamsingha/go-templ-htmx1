@@ -32,26 +32,56 @@ func LoginHandler(c *fiber.Ctx) error {
 	var inp Input
 
 	if err := c.BodyParser(&inp); err != nil {
-		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
+		c.Status(fiber.StatusBadRequest)
+		if c.Get("HX-Request") == "true" {
+			c.Set("HX-Retarget", "#SignupError")
+			c.Set("HX-Reswap", "outerHTML")
+			return util.Render(c, components.SignupError(err.Error()))
+		}
+		return util.Render(c, layout.Base(partial.Login(err.Error())))
 	}
 
 	q := sqlc.New(database.Conn)
 	u, err := q.GetUser(context.Background(), inp.Email)
 
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return c.Status(fiber.StatusUnauthorized).SendString("User not found")
+		if c.Get("HX-Request") == "true" {
+			c.Set("HX-Retarget", "#SignupError")
+			c.Set("HX-Reswap", "outerHTML")
+			if errors.Is(err, pgx.ErrNoRows) {
+				c.Status(fiber.StatusNotFound)
+				return util.Render(c, components.SignupError("User doesn't exist!"))
+			}
+			c.Status(fiber.StatusInternalServerError)
+			return util.Render(c, components.SignupError("Internal Server Error!"))
 		}
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		if errors.Is(err, pgx.ErrNoRows) {
+			c.Status(fiber.StatusNotFound)
+			return util.Render(c, layout.Base(partial.Login("User doesn't exist!")))
+		}
+		c.Status(fiber.StatusInternalServerError)
+		return util.Render(c, layout.Base(partial.Login("Internal Server Error!")))
 	}
 
 	passwordMatches, err := argon2.VerifyEncoded([]byte(inp.Password), []byte(u.Password))
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+		c.Status(fiber.StatusInternalServerError)
+		if c.Get("HX-Request") == "true" {
+			c.Set("HX-Retarget", "#SignupError")
+			c.Set("HX-Reswap", "outerHTML")
+			return util.Render(c, components.SignupError("Internal Server Error"))
+		}
+		return util.Render(c, layout.Base(partial.Login("Internal Server Error")))
 	}
 
 	if !passwordMatches {
-		return c.Status(fiber.StatusUnauthorized).SendString("Password wrong")
+		c.Status(fiber.StatusUnauthorized)
+		if c.Get("HX-Request") == "true" {
+			c.Set("HX-Retarget", "#SignupError")
+			c.Set("HX-Reswap", "outerHTML")
+			return util.Render(c, components.SignupError("Password wrong"))
+		}
+		return util.Render(c, layout.Base(partial.Login("Password wrong")))
 	}
 
 	return c.Status(fiber.StatusOK).SendString("Logged In")
@@ -82,7 +112,7 @@ func SignupHandler(c *fiber.Ctx) error {
 			c.Set("HX-Reswap", "outerHTML")
 			return util.Render(c, components.SignupError(err.Error()))
 		}
-		return util.Render(c, layout.Base(partial.Signup(err.Error())))
+		return util.Render(c, layout.Base(partial.Login(err.Error())))
 	}
 
 	argon := argon2.RecommendedDefaults()
